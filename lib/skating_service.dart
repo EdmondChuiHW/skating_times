@@ -1,3 +1,5 @@
+import 'dart:async';
+
 class ImmutableSkatingSession {
   final DateTime startTime;
   final DateTime endTime;
@@ -12,4 +14,12 @@ class ImmutableSkatingSession {
       this.displayTitle,
       this.locationDisplayName,
       this.locationAddress,);
+}
+
+abstract class SkatingService {
+  Future<Iterable<ImmutableSkatingSession>> getSessions({
+    num maxNumberOfSessions,
+    String sortBy,
+    DateTime maxTime
+  });
 }

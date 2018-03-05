@@ -24,6 +24,7 @@
 
 import 'dart:async';
 
+import 'package:intl/intl.dart';
 import 'package:meta/meta.dart';
 
 @immutable
@@ -45,12 +46,20 @@ class ImmutableSkatingSession {
       this.locationAddress,
   );
   //@formatter:on
+
+  String get formattedTimeStr {
+    final startFormat = new DateFormat.MMMd().add_jm();
+    final endFormat = new DateFormat.jm();
+    return '${startFormat.format(startTime)}–${endFormat.format(endTime)}';
+  }
 }
 
 abstract class SkatingSessionService {
-  Future<Iterable<ImmutableSkatingSession>> getSessions({
+  Future<List<ImmutableSkatingSession>> getSessions({
     num maxNumberOfSessions,
+    num startFromIndex,
     String sortBy,
+    DateTime minTime,
     DateTime maxTime,
   });
 }

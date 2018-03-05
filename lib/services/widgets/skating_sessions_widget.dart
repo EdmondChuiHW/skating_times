@@ -22,6 +22,8 @@
  * SOFTWARE.
  */
 
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:skating_times/services/edmonton/edmonton_skating_service.dart';
 import 'package:skating_times/services/skating_service.dart';
@@ -34,22 +36,52 @@ class SkatingSessionsStateWidget extends StatefulWidget {
 class SkatingSessionState extends State<SkatingSessionsStateWidget> {
   final SkatingSessionService service = new EdmontonSkatingSessionsService();
 
+  final _loadDisplaySessionsPer = 3;
   final _displaySessions = <ImmutableSkatingSession>[];
   final _saved = new Set<ImmutableSkatingSession>();
 
   final _biggerFont = const TextStyle(fontSize: 18.0);
 
+  Future<List<ImmutableSkatingSession>> currentlyLoading;
+
   @override
   Widget build(BuildContext context) {
+    if (_displaySessions.isEmpty) {
+      _loadMoreAndUpdateUi();
+    }
     return new Scaffold (
       appBar: new AppBar(
         title: new Text('Skating sessions'),
         actions: <Widget>[
           new IconButton(icon: new Icon(Icons.list), onPressed: _pushSaved),
         ],
-      ),
-      body: _buildSuggestions(),
-    );
+        ),
+      body: _displaySessions.isEmpty
+            ? new Center(child: new CircularProgressIndicator())
+            : new RefreshIndicator(
+        child: _buildDisplayList(_displaySessions),
+        onRefresh: () => _loadMoreAndUpdateUi(reset: true),
+        ),
+      );
+  }
+
+  Future<List<ImmutableSkatingSession>> _loadMoreAndUpdateUi({bool reset}) {
+    if (reset == null) reset = false;
+
+    final length = _displaySessions.length;
+    if (reset) {
+      _displaySessions.clear();
+    }
+    final startFromIndex = reset ? 0 : length;
+    final limit = reset ? length : null; // null = use default
+    // @formatter:off
+    return _loadIfRequired(startFromIndex: startFromIndex, maxNumberOfSessions: limit)
+        .then((sessions) {
+          if (!mounted) return [];
+          setState(() => _displaySessions.insertAll(startFromIndex, sessions));
+          return sessions;
+        });
+    // @formatter:on
   }
 
   void _pushSaved() {
@@ -61,66 +93,69 @@ class SkatingSessionState extends State<SkatingSessionsStateWidget> {
               title: new Text(
                 s.locationDisplayName,
                 style: _biggerFont,
-              ),
-            );
-          },
-          );
+                ),
+              subtitle: new Text(s.formattedTimeStr),
+              );
+          },);
           final divided = ListTile.divideTiles(
             context: context,
             tiles: tiles,
-          ).toList();
+            ).toList();
 
           return new Scaffold(
-            appBar: new AppBar(
-              title: new Text('Saved Suggestionsz'),
-            ),
+            appBar: new AppBar(title: new Text('Saved sessions')),
             body: new ListView(children: divided),
-          );
+            );
         },
-      ),
-    );
+        ),
+      );
   }
 
-  Widget _buildSuggestions() {
+  Widget _buildDisplayList(List<ImmutableSkatingSession> sessions) {
+    final existingDisplaySessionsLen = sessions.length;
     return new ListView.builder(
-        padding: const EdgeInsets.all(16.0),
-        // The itemBuilder callback is called once per suggested word pairing,
-        // and places each suggestion into a ListTile row.
-        // For even rows, the function adds a ListTile row for the word pairing.
-        // For odd rows, the function adds a Divider widget to visually
-        // separate the entries. Note that the divider may be difficult
-        // to see on smaller devices.
+        physics: const AlwaysScrollableScrollPhysics(),
+        itemCount: existingDisplaySessionsLen * 2 + 1,
         itemBuilder: (context, i) {
-          // Add a one-pixel-high divider widget before each row in theListView.
+          // Mar 4 2018 https://flutter.io/get-started/codelab/#step-4-create-an-infinite-scrolling-listview
           if (i.isOdd) return new Divider();
-
-          // The syntax "i ~/ 2" divides i by 2 and returns an integer result.
-          // For example: 1, 2, 3, 4, 5 becomes 0, 1, 1, 2, 2.
-          // This calculates the actual number of word pairings in the ListView,
-          // minus the divider widgets.
           final index = i ~/ 2;
-          // If you've reached the end of the available word pairings...
-          if (index >= _displaySessions.length) {
-            getAndUpdateSessions();
+          if (index > existingDisplaySessionsLen) {
+            return new Container();
+          } else if (index == existingDisplaySessionsLen) {
+            return new ListTile(
+              title: new Center(child: new Text("Load more…")),
+              onTap: () => _loadMoreAndUpdateUi(),
+              );
+          } else {
+            return _buildRow(sessions[index]);
           }
-          return _buildRow(_displaySessions[index]);
-        }
-    );
+        });
   }
 
-  getAndUpdateSessions({
-    num maxNumberOfSessions,
-    String sortBy,
-    DateTime maxTime,
-  }) async {
-    final sessions = await service.getSessions(
-      maxNumberOfSessions: maxNumberOfSessions,
-      sortBy: sortBy,
-      maxTime: maxTime,
-    );
-    if (!mounted) return;
+  Future<List<ImmutableSkatingSession>> _loadIfRequired({
+    num startFromIndex,
+    num maxNumberOfSessions
+  }) {
+    if (maxNumberOfSessions == null) maxNumberOfSessions = _loadDisplaySessionsPer;
+    if (startFromIndex == null) startFromIndex = 0;
 
-    setState(() => _displaySessions.addAll(sessions));
+    if (currentlyLoading == null) {
+      // @formatter:off
+      currentlyLoading = service
+          .getSessions(
+            minTime: new DateTime.now(),
+            maxTime: new DateTime.now().add(new Duration(days: 7)),
+            maxNumberOfSessions: maxNumberOfSessions,
+            startFromIndex: startFromIndex
+          )
+          .then((r) {
+            currentlyLoading = null;
+            return r;
+          });
+      // @formatter:on
+    }
+    return currentlyLoading;
   }
 
   Widget _buildRow(ImmutableSkatingSession s) {
@@ -129,12 +164,16 @@ class SkatingSessionState extends State<SkatingSessionsStateWidget> {
       title: new Text(
         s.locationDisplayName,
         style: _biggerFont,
-      ),
-      trailing: new Icon(
-        alreadySaved ? Icons.favorite : Icons.favorite_border,
-        color: alreadySaved ? Colors.red : null,
-      ),
-      onTap: () {
+        ),
+      subtitle: new Text(s.formattedTimeStr),
+      trailing: new IconButton(icon: new Icon(
+        alreadySaved
+        ? Icons.favorite
+        : Icons.favorite_border,
+        color: alreadySaved
+               ? Colors.red
+               : null,
+        ), onPressed: () {
         setState(() {
           if (alreadySaved) {
             _saved.remove(s);
@@ -142,7 +181,7 @@ class SkatingSessionState extends State<SkatingSessionsStateWidget> {
             _saved.add(s);
           }
         });
-      },
-    );
+      }),
+      );
   }
 }

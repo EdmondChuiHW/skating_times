@@ -26,6 +26,7 @@ import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
 
+import 'package:intl/intl.dart';
 import 'package:skating_times/secret_consts.dart';
 import 'package:skating_times/services/skating_service.dart';
 
@@ -41,13 +42,19 @@ class EdmontonSkatingSessionsService implements SkatingSessionService {
   EdmontonSkatingSessionsService._internal();
 
   @override
-  Future<Iterable<ImmutableSkatingSession>> getSessions({
-    num maxNumberOfSessions, String sortBy, DateTime maxTime
+  Future<List<ImmutableSkatingSession>> getSessions({
+    num maxNumberOfSessions,
+    num startFromIndex,
+    String sortBy,
+    DateTime minTime,
+    DateTime maxTime,
   }) async {
     return _mapJsonArrayToSessions(
         await _getRawJson(
           maxNumberOfSessions: maxNumberOfSessions,
+          startFromIndex: startFromIndex,
           sortBy: sortBy,
+          minTime: minTime,
           maxTime: maxTime,
         )
     );
@@ -55,12 +62,16 @@ class EdmontonSkatingSessionsService implements SkatingSessionService {
 
   Future<List<dynamic>> _getRawJson({
     num maxNumberOfSessions,
+    num startFromIndex,
     String sortBy,
-    DateTime maxTime
+    DateTime minTime,
+    DateTime maxTime,
   }) async {
     final url = makeUriStrFrom(
       maxNumberOfSessions: maxNumberOfSessions,
       sortBy: sortBy,
+      startFromIndex: startFromIndex,
+      minTime: minTime,
       maxTime: maxTime,
     );
     final httpClient = new HttpClient();
@@ -75,8 +86,14 @@ class EdmontonSkatingSessionsService implements SkatingSessionService {
   }
 
   String makeUriStrFrom({
-    num maxNumberOfSessions, String sortBy, DateTime minTime, DateTime maxTime
+    num maxNumberOfSessions,
+    num startFromIndex,
+    String sortBy,
+    DateTime minTime,
+    DateTime maxTime,
   }) {
+    if (sortBy == null) sortBy = 'start_date_time_sort';
+
     //@formatter:off
     final b = new StringBuffer()
       ..write('https://data.edmonton.ca/resource/jir8-stwr.json?')
@@ -85,6 +102,10 @@ class EdmontonSkatingSessionsService implements SkatingSessionService {
 
     if (maxNumberOfSessions != null) {
       b.write('&\$limit=$maxNumberOfSessions');
+    }
+    
+    if (startFromIndex != null) {
+      b.write('&\$offset=$startFromIndex');
     }
 
     if (minTime != null && maxTime != null) {
@@ -95,7 +116,7 @@ class EdmontonSkatingSessionsService implements SkatingSessionService {
     } else if (maxTime != null) {
       b..write(r'&$where=')..write("date<='${maxTime.toIso8601String()}'");
     } else if (minTime != null) {
-      b..write(r'&$where=')..write("date>='${maxTime.toIso8601String()}'");
+      b..write(r'&$where=')..write("date>='${minTime.toIso8601String()}'");
     }
 
     if (sortBy != null) {
@@ -109,60 +130,87 @@ class EdmontonSkatingSessionsService implements SkatingSessionService {
 
   // See below: 'Sample JSON from server'
   Iterable<ImmutableSkatingSession> _mapJsonArrayToSessions(List json) {
+    final f = new DateFormat('yyyy-MM-dd hh:mm a');
+
     return json.map((dynamic entry) {
       final dateWithZeroTimeStr = entry['date'] as String;
       final dateStr = dateWithZeroTimeStr.split('T')[0];
       return new ImmutableSkatingSession(
-        DateTime.parse('$dateStr ${entry["start_time"]}'),
-        DateTime.parse('$dateStr ${entry["end_time"]}'),
+        f.parse('$dateStr ${entry["start_time"]}'),
+        f.parse('$dateStr ${entry["end_time"]}'),
         entry['function'],
         entry['complex'],
         entry['address_1'],
       );
-    });
+    }).toList();
   }
 
 /* Sample JSON from server:
- [
+[
    {
-      "address":"2051 Leger Road NW",
-      "arena":"Terwillegar Subway Arena",
-      "date":"2018-03-04T00:00:00.000",
-      "end":"05:45 PM",
-      "start":"04:45 PM",
-      "title":"Drop In Public Skating"
+      "address_1":"10245 105 Avenue NW",
+      "complex":"Downtown Community Arena",
+      "date":"2018-03-07T00:00:00.000",
+      "end_time":"7:45 AM",
+      "function":"Drop In Public Skating - Adult Fitness",
+      "start_time":"6:30 AM"
    },
    {
-      "address":"3804 139 Avenue NW",
-      "arena":"Clareview Arena",
-      "date":"2018-03-09T00:00:00.000",
-      "end":"08:15 AM",
-      "start":"06:45 AM",
-      "title":"Drop In Public Skating - Adult Fitness"
+      "address_1":"2051 Leger Road NW",
+      "complex":"Terwillegar Subway Arena",
+      "date":"2018-03-07T00:00:00.000",
+      "end_time":"8:15 AM",
+      "function":"Drop In Public Skating - Adult Fitness",
+      "start_time":"6:45 AM"
    },
    {
-      "address":"2704 17 Street NW",
-      "arena":"The Meadows Arena",
-      "date":"2018-03-09T00:00:00.000",
-      "end":"08:15 AM",
-      "start":"06:45 AM",
-      "title":"Drop In Public Skating - Adult Fitness"
+      "address_1":"2704 17 Street NW",
+      "complex":"The Meadows Arena",
+      "date":"2018-03-07T00:00:00.000",
+      "end_time":"8:15 AM",
+      "function":"Drop In Public Skating - Adult Fitness",
+      "start_time":"6:45 AM"
    },
    {
-      "address":"2704 17 Street NW",
-      "arena":"The Meadows Arena",
-      "date":"2018-03-04T00:00:00.000",
-      "end":"10:15 PM",
-      "start":"09:15 PM",
-      "title":"Drop In Shinny - Adult"
+      "address_1":"3804 139 Avenue NW",
+      "complex":"Clareview Arena",
+      "date":"2018-03-07T00:00:00.000",
+      "end_time":"8:15 AM",
+      "function":"Drop In Public Skating - Adult Fitness",
+      "start_time":"6:45 AM"
    },
    {
-      "address":"10404 56 Street NW",
-      "arena":"Michael Cameron Arena",
-      "date":"2018-03-09T00:00:00.000",
-      "end":"06:00 PM",
-      "start":"05:00 PM",
-      "title":"Drop In Public Skating"
+      "address_1":"2704 17 Street NW",
+      "complex":"The Meadows Arena",
+      "date":"2018-03-07T00:00:00.000",
+      "end_time":"10:45 AM",
+      "function":"Drop In Public Skating - Older Adults",
+      "start_time":"9:45 AM"
+   },
+   {
+      "address_1":"2704 17 Street NW",
+      "complex":"The Meadows Arena",
+      "date":"2018-03-07T00:00:00.000",
+      "end_time":"12:00 PM",
+      "function":"Drop In Public Skating - Parent and Tots",
+      "start_time":"11:00 AM"
+   },
+   {
+      "address_1":"2704 17 Street NW",
+      "complex":"The Meadows Arena",
+      "date":"2018-03-07T00:00:00.000",
+      "end_time":"1:00 PM",
+      "function":"Drop In Member Skate Open Skate",
+      "start_time":"12:00 PM"
+   },
+   {
+      "address_1":"2704 17 Street NW",
+      "complex":"The Meadows Arena",
+      "date":"2018-03-07T00:00:00.000",
+      "end_time":"2:00 PM",
+      "function":"Drop In Public Skating - Parent and Tots",
+      "start_time":"1:00 PM"
    }
-] */
+]
+*/
 }

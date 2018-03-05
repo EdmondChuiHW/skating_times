@@ -1,5 +1,8 @@
 import 'dart:async';
 
+import 'package:meta/meta.dart';
+
+@immutable
 class ImmutableSkatingSession {
   final DateTime startTime;
   final DateTime endTime;

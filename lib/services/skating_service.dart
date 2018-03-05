@@ -47,7 +47,7 @@ class ImmutableSkatingSession {
   //@formatter:on
 }
 
-abstract class SkatingService {
+abstract class SkatingSessionService {
   Future<Iterable<ImmutableSkatingSession>> getSessions({
     num maxNumberOfSessions,
     String sortBy,

@@ -52,6 +52,16 @@ class ImmutableSkatingSession {
     final endFormat = new DateFormat.jm();
     return '${startFormat.format(startTime)}–${endFormat.format(endTime)}';
   }
+
+  String get formattedShortDateStr {
+    return new DateFormat.MMMd().add_E().format(startTime);
+  }
+
+  String get formattedTimeStrWithoutDate {
+    final startFormat = new DateFormat("h:mm");
+    final endFormat = new DateFormat.jm();
+    return '${startFormat.format(startTime)}–${endFormat.format(endTime)}';
+  }
 }
 
 abstract class SkatingSessionService {

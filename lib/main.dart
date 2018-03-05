@@ -35,7 +35,7 @@ class MyApp extends StatelessWidget {
       title: 'Startup Name Generator',
       home: new SkatingSessionsStateWidget(),
       theme: new ThemeData(
-          primaryColor: Colors.blue,
+          primarySwatch: Colors.blue,
           accentColor: Colors.pinkAccent
       ),
     );

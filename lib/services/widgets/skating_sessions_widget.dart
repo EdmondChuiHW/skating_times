@@ -43,7 +43,7 @@ class SkatingSessionState extends State<SkatingSessionsStateWidget> {
   final _saved = new Set<ImmutableSkatingSession>();
 
   final _titleFont = const TextStyle(fontSize: 20.0);
-  final _hourFont = new TextStyle(fontSize: 32.0);
+  final _hourFont = new TextStyle(fontSize: 28.0);
 
   Future<List<ImmutableSkatingSession>> currentlyLoading;
 
@@ -62,7 +62,7 @@ class SkatingSessionState extends State<SkatingSessionsStateWidget> {
       body: _displaySessions.isEmpty
             ? new Center(child: new CircularProgressIndicator())
             : new RefreshIndicator(
-        child: _buildDisplayList(_displaySessions),
+        child: _buildDisplayList(context, _displaySessions),
         onRefresh: () => _loadMoreAndUpdateUi(reset: true),
         ),
       );
@@ -114,7 +114,8 @@ class SkatingSessionState extends State<SkatingSessionsStateWidget> {
       );
   }
 
-  Widget _buildDisplayList(List<ImmutableSkatingSession> sessions) {
+  Widget _buildDisplayList(BuildContext context, List<
+      ImmutableSkatingSession> sessions) {
     final existingDisplaySessionsLen = sessions.length;
     return new ListView.builder(
         physics: const AlwaysScrollableScrollPhysics(),
@@ -132,7 +133,7 @@ class SkatingSessionState extends State<SkatingSessionsStateWidget> {
               onTap: () => _loadMoreAndUpdateUi(),
               );
           } else {
-            return _buildRow(sessions[index]);
+            return _buildRow(context, sessions[index]);
           }
         });
   }
@@ -162,11 +163,19 @@ class SkatingSessionState extends State<SkatingSessionsStateWidget> {
     return currentlyLoading;
   }
 
-  Widget _buildRow(ImmutableSkatingSession s) {
+  Future _openAddress(String a) async {
+    final url = Uri.encodeFull(
+        'https://www.google.com/maps/search/?api=1&query=$a');
+    if (await canLaunch(url)) {
+      return launch(url, forceSafariVC: false, forceWebView: false);
+    }
+  }
+
+  Widget _buildRow(BuildContext context, ImmutableSkatingSession s) {
     final alreadySaved = _saved.contains(s);
     return new ListTile(
       leading: new Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
+        crossAxisAlignment: CrossAxisAlignment.center,
         children: <Widget>[
           new Text(
             new DateFormat('h').format(s.startTime),
@@ -175,21 +184,35 @@ class SkatingSessionState extends State<SkatingSessionsStateWidget> {
           new Text(new DateFormat('a').format(s.startTime)),
         ],
         ),
-      title: new Text(s.locationDisplayName, style: _titleFont),
-      subtitle: new Text(s.formattedTimeStr),
+      title: new Padding(
+        padding: const EdgeInsets.only(bottom: 8.0),
+        child: new Text(s.locationDisplayName, style: _titleFont),
+        ),
+      subtitle: new RichText(
+        text: new TextSpan(
+          style: DefaultTextStyle
+              .of(context)
+              .style,
+          children: <TextSpan>[
+            new TextSpan(text: s.formattedShortDateStr + ' ',
+                             style: new TextStyle(fontWeight: FontWeight.bold,
+                                                      color: Theme
+                                                          .of(context)
+                                                          .primaryColor)),
+            new TextSpan(text: s.formattedTimeStrWithoutDate),
+          ],
+          ),
+        ),
       trailing: new Row(
         children: <Widget>[
           new IconButton(
             icon: new Icon(Icons.navigation, color: Theme
                 .of(context)
                 .accentColor,),
-            onPressed: () async {
-              final url = 'https://www.google.com/maps/search/?api=1&query=${s
-                  .locationAddress}';
-              if (await canLaunch(url)) {
-                return launch(url);
-              }
-            },),
+            onPressed: () {
+              return _openAddress(s.locationAddress);
+            },
+            ),
           new IconButton(icon: new Icon(
             alreadySaved
             ? Icons.favorite

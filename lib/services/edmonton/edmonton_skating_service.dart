@@ -6,6 +6,16 @@ import 'package:skating_times/secret_consts.dart';
 import 'package:skating_times/services/skating_service.dart';
 
 class EdmontonSkatingService implements SkatingService {
+  // Mar 4 2018 https://gist.github.com/theburningmonk/6401183
+  static final EdmontonSkatingService _singleton
+  = new EdmontonSkatingService._internal();
+
+  factory EdmontonSkatingService() {
+    return _singleton;
+  }
+
+  EdmontonSkatingService._internal();
+
   @override
   Future<Iterable<ImmutableSkatingSession>> getSessions({
     num maxNumberOfSessions, String sortBy, DateTime maxTime

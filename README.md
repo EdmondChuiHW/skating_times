@@ -1,4 +1,4 @@
-# skating_times
+# Skating Times
 
 Flutter app of public skating times
 
@@ -12,5 +12,5 @@ MIT License
 
 Copyright (c) 2018 Edmond Chui
 
-<img src="./readme_assets/android_ss.png" width="350" style="display:inline;">
-<img src="./readme_assets/ios_ss.png" width="350" style="display:inline;">
+<img src="./readme_assets/android_ss.png" width="350" style="display:inline-block;">
+<img src="./readme_assets/ios_ss.png" width="350" style="display:inline-block;">

@@ -25,8 +25,10 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import 'package:intl/intl.dart';
 import 'package:skating_times/services/edmonton/edmonton_skating_service.dart';
 import 'package:skating_times/services/skating_service.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 class SkatingSessionsStateWidget extends StatefulWidget {
   @override
@@ -36,11 +38,12 @@ class SkatingSessionsStateWidget extends StatefulWidget {
 class SkatingSessionState extends State<SkatingSessionsStateWidget> {
   final SkatingSessionService service = new EdmontonSkatingSessionsService();
 
-  final _loadDisplaySessionsPer = 3;
+  final _loadDisplaySessionsPer = 48;
   final _displaySessions = <ImmutableSkatingSession>[];
   final _saved = new Set<ImmutableSkatingSession>();
 
-  final _biggerFont = const TextStyle(fontSize: 18.0);
+  final _titleFont = const TextStyle(fontSize: 20.0);
+  final _hourFont = new TextStyle(fontSize: 32.0);
 
   Future<List<ImmutableSkatingSession>> currentlyLoading;
 
@@ -92,7 +95,7 @@ class SkatingSessionState extends State<SkatingSessionsStateWidget> {
             return new ListTile(
               title: new Text(
                 s.locationDisplayName,
-                style: _biggerFont,
+                style: _titleFont,
                 ),
               subtitle: new Text(s.formattedTimeStr),
               );
@@ -115,6 +118,7 @@ class SkatingSessionState extends State<SkatingSessionsStateWidget> {
     final existingDisplaySessionsLen = sessions.length;
     return new ListView.builder(
         physics: const AlwaysScrollableScrollPhysics(),
+        padding: const EdgeInsets.all(4.0),
         itemCount: existingDisplaySessionsLen * 2 + 1,
         itemBuilder: (context, i) {
           // Mar 4 2018 https://flutter.io/get-started/codelab/#step-4-create-an-infinite-scrolling-listview
@@ -161,27 +165,51 @@ class SkatingSessionState extends State<SkatingSessionsStateWidget> {
   Widget _buildRow(ImmutableSkatingSession s) {
     final alreadySaved = _saved.contains(s);
     return new ListTile(
-      title: new Text(
-        s.locationDisplayName,
-        style: _biggerFont,
+      leading: new Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: <Widget>[
+          new Text(
+            new DateFormat('h').format(s.startTime),
+            style: _hourFont,
+            ),
+          new Text(new DateFormat('a').format(s.startTime)),
+        ],
         ),
+      title: new Text(s.locationDisplayName, style: _titleFont),
       subtitle: new Text(s.formattedTimeStr),
-      trailing: new IconButton(icon: new Icon(
-        alreadySaved
-        ? Icons.favorite
-        : Icons.favorite_border,
-        color: alreadySaved
-               ? Colors.red
-               : null,
-        ), onPressed: () {
-        setState(() {
-          if (alreadySaved) {
-            _saved.remove(s);
-          } else {
-            _saved.add(s);
-          }
-        });
-      }),
+      trailing: new Row(
+        children: <Widget>[
+          new IconButton(
+            icon: new Icon(Icons.navigation, color: Theme
+                .of(context)
+                .accentColor,),
+            onPressed: () async {
+              final url = 'https://www.google.com/maps/search/?api=1&query=${s
+                  .locationAddress}';
+              if (await canLaunch(url)) {
+                return launch(url);
+              }
+            },),
+          new IconButton(icon: new Icon(
+            alreadySaved
+            ? Icons.favorite
+            : Icons.favorite_border,
+            color: alreadySaved
+                   ? Theme
+                       .of(context)
+                       .accentColor
+                   : null,
+            ), onPressed: () {
+            setState(() {
+              if (alreadySaved) {
+                _saved.remove(s);
+              } else {
+                _saved.add(s);
+              }
+            });
+          }),
+        ],
+        ),
       );
   }
 }

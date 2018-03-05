@@ -12,5 +12,5 @@ MIT License
 
 Copyright (c) 2018 Edmond Chui
 
-![Android screenshot](./readme_assets/android_ss.png)
-![iOS screenshot](./readme_assets/ios_ss.png)
+![Android screenshot](./readme_assets/android_ss.png | width=150)
+![iOS screenshot](./readme_assets/ios_ss.png | width=150)
